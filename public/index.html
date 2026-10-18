@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Press Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+<style>
+  :root { --navy:#0f2347; --blue:#1f4fa8; --gold:#c9a24a; --red:#b3202a; --ink:#0b0f18; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#000; font-family:Inter, system-ui, sans-serif; color:#fff; }
+  canvas#game { display:block; width:100vw; height:100vh; }
+  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(15,35,71,.85), rgba(0,0,0,.95)); z-index:10; }
+  .card { width:min(440px, calc(100vw - 32px)); background:#0d1830; border:1px solid #2a3f6b; border-top:4px solid var(--red); border-radius:10px; padding:28px; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  h1 { font-family:'Libre Baskerville', serif; margin:0 0 4px; font-size:30px; letter-spacing:.5px; }
+  .sub { color:#9fb2d8; margin:0 0 22px; font-size:14px; }
+  label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:1.2px; color:#9fb2d8; margin:14px 0 6px; }
+  input[type=text] { width:100%; padding:12px 14px; border-radius:6px; border:1px solid #2a3f6b; background:#08101f; color:#fff; font-size:16px; outline:none; }
+  input[type=text]:focus { border-color:var(--gold); }
+  .swatches { display:flex; gap:8px; flex-wrap:wrap; }
+  .sw { width:34px; height:34px; border-radius:50%; border:2px solid transparent; cursor:pointer; }
+  .sw.on { border-color:#fff; box-shadow:0 0 0 2px var(--gold); }
+  button.primary { margin-top:24px; width:100%; padding:14px; font-weight:800; font-size:16px; letter-spacing:1px; text-transform:uppercase; border:0; border-radius:6px; background:var(--red); color:#fff; cursor:pointer; }
+  button.primary:hover { filter:brightness(1.1); }
+  .note { font-size:12px; color:#7d8db0; margin-top:14px; line-height:1.5; }
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:5; display:none; }
+  #crosshair { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; border-radius:50%; background:rgba(255,255,255,.8); }
+  #prompt { position:absolute; left:50%; top:60%; transform:translateX(-50%); background:rgba(0,0,0,.65); padding:8px 14px; border-radius:6px; font-weight:600; font-size:15px; display:none; white-space:nowrap; }
+  #prompt kbd, .help kbd { background:#fff; color:#000; border-radius:3px; padding:1px 6px; font-weight:800; margin-right:4px; }
+  #onair { position:absolute; top:16px; left:50%; transform:translateX(-50%); display:none; background:var(--red); padding:6px 14px; border-radius:4px; font-weight:800; letter-spacing:1px; font-size:14px; }
+  #onair .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#fff; margin-right:8px; animation:blink 1s infinite; }
+  @keyframes blink { 50% { opacity:.2; } }
+  .help { position:absolute; left:16px; bottom:16px; font-size:12px; color:#cfd8ea; background:rgba(0,0,0,.45); padding:10px 12px; border-radius:6px; line-height:1.9; }
+  #roster { position:absolute; right:16px; top:16px; font-size:12px; background:rgba(0,0,0,.45); padding:8px 12px; border-radius:6px; line-height:1.7; min-width:140px; }
+  #roster b { color:var(--gold); }
+  #micstatus { position:absolute; right:16px; bottom:16px; font-size:12px; background:rgba(0,0,0,.45); padding:8px 12px; border-radius:6px; }
+  #resume { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:8; background:rgba(0,0,0,.45); cursor:pointer; font-weight:800; font-size:20px; letter-spacing:1px; }
+  #archive { display:none; }
+  #archive .card { width:min(640px, calc(100vw - 32px)); max-height:80vh; display:flex; flex-direction:column; }
+  #list { overflow:auto; margin-top:10px; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid #1d2c4d; }
+  .row .meta { flex:1; min-width:0; }
+  .row .meta b { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .meta span { font-size:12px; color:#8ea0c4; }
+  .btn { padding:8px 12px; border-radius:5px; border:1px solid #2a3f6b; background:#13254a; color:#fff; font-weight:600; font-size:13px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .btn:hover { border-color:var(--gold); }
+  .closex { float:right; background:none; border:0; color:#9fb2d8; font-size:22px; cursor:pointer; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="overlay" id="join">
+  <div class="card">
+    <h1>Press Room</h1>
+    <p class="sub">Take the podium. Address the room. Go on the record.</p>
+    <label for="name">Your name</label>
+    <input id="name" type="text" maxlength="20" placeholder="e.g. Senator G" autocomplete="off" />
+    <label>Suit</label>
+    <div class="swatches" id="suits"></div>
+    <label>Tie</label>
+    <div class="swatches" id="ties"></div>
+    <label>Skin tone</label>
+    <div class="swatches" id="skins"></div>
+    <button class="primary" id="enter">Enter the briefing room</button>
+    <p class="note">Your browser will ask for the microphone — that's your voice in the room. Headphones recommended so the PA doesn't feed back.</p>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="onair"><span class="dot"></span><span id="onairtext">ON AIR</span></div>
+  <div id="roster"></div>
+  <div class="help">
+    <kbd>WASD</kbd>move &nbsp;<kbd>Mouse</kbd>look<br>
+    <kbd>E</kbd>podium / sit / TV &nbsp;<kbd>C</kbd>clap<br>
+    <kbd>M</kbd>hear yourself on the PA (headphones only)
+  </div>
+  <div id="micstatus">🎙️ mic: starting…</div>
+</div>
+<div id="resume">CLICK TO RESUME</div>
+
+<div class="overlay" id="archive">
+  <div class="card">
+    <div><button class="closex" id="closeArchive">×</button><h1 style="font-size:22px">Speech Archive</h1></div>
+    <p class="sub" style="margin:0">Every podium speech is recorded. Play it on the TV or download it.</p>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "/three/build/three.module.js" } }
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/game.js"></script>
+</body>
+</html>
